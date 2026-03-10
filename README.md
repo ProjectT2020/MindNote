@@ -20,7 +20,7 @@ Build, install, and start your journey:
 ```bash
 make
 sudo make install
-cd ~/Documents && UniverseMindmap
+cd ~/Documents && universe-mindmap
 ```
 
 

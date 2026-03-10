@@ -51,10 +51,12 @@ run: $(TARGET)
 
 install: $(TARGET)
 	cp $(TARGET) /usr/local/bin/universe-mindmap
+	cp $(TARGET) /usr/local/bin/umm
 
 uninstall:
 	rm -f /usr/local/bin/universe-mindmap
-
+	rm -f /usr/local/bin/umm
+	
 clean:
 	rm -f $(CORE_OBJS) $(APP_OBJS) $(TARGET)
 	rm -f $(CORE_OBJS:.o=.d) $(APP_OBJS:.o=.d)
