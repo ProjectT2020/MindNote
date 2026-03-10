@@ -43,7 +43,7 @@ cd ~/Documents && mindnote
 * **High Performance** — handles **1M+ nodes** with ease and **starts instantly**
 * **Crash-Safe / WAL** — uses **Write-Ahead Logging** to prevent data loss in case of system crash
 * **Local-First** — all data is stored in a local file
-* **Fast Navigation** — search, bookmarks, jump history, and more
+* **Fast Navigation** — search, bookmarks, jump history, term definition and more
 * **Node Counter** — see how many notes you have taken so far
 
 ---
