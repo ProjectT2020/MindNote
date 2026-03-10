@@ -67,7 +67,7 @@ cd ~/Documents && mindnote
 You can mark a node as the **definition of a term** and jump to it anywhere in MindNote.
 
 * **mark term:** `m[` — mark current node as a term and surround it with `[]`
-* **jump to definition:** if the current node text matches a marked term, press `gd`
+* **jump to definition:** if the current node text matches a marked term, press `gd` will jump to the marked term
 
 ---
 
