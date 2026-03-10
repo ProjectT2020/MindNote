@@ -302,6 +302,9 @@ static void mindmap_render_node(UiContext *ctx, TreeNode n, int origin_x, int or
             // printf("\033[4m");
         }
 
+        if(render_text == NULL || render_text[0] == '\0'){
+            printf("\b  ");
+        }
         printf("%s", render_text);
         if (is_current || should_highlight) {
             printf("\033[0m");
@@ -343,6 +346,8 @@ static void mindmap_render_node(UiContext *ctx, TreeNode n, int origin_x, int or
     bool is_first_child = node_id == tree_node_id(top_sibling);
     bool is_last_child = node_id == tree_node_id(bottom_sibling);
     int link_x = node_render_x - link_width + 1;
+
+    // show jump mark
     if(!tree_node_is_null(parent) && link_x >=0 && link_x < view_w){
         const int mark_page_size = 26 * 26; // 676
         if(ctx->mark_and_show_visible_nodes && ctx->mark >= mark_page_size){
@@ -356,8 +361,12 @@ static void mindmap_render_node(UiContext *ctx, TreeNode n, int origin_x, int or
                 // show position
                 char mark1 = 'a' + (ctx->mark / 26);
                 char mark2 = 'a' + (ctx->mark % 26);
-
+                
+                printf("\033[1m"); // bold
+                printf("\033[4m"); // underline
                 printf("\033[%d;%dH%c%c", link_y + 1, link_x + 1 - 1, mark1, mark2);
+                printf("\033[24m"); // reset underline
+                printf("\033[22m"); // reset bold
                 marked_node = true;
             }
             ctx->mark++;
