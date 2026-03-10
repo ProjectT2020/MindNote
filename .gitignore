@@ -1,0 +1,11 @@
+*.o
+*.d
+*.a
+*.umt
+*.umt.*
+cscope.*
+tags
+.DS_Store
+.vscode/
+bin/
+mindnote
