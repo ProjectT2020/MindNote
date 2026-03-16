@@ -123,6 +123,7 @@ A command mode similar to Vim is available:
 ## note
 For more advanced usage, see `./doc`
 [View & Layout](./doc/view_layout.md)
+[Link to External Resources](./doc/external_resources.md)
 
 # Contributing
 

@@ -25,6 +25,8 @@ static const char *RECYCLE_BIN_NAME = "recycle_bin";
 static const char *APP_META_BOOKMARK_NAME = "bookmarks";
 static const char *CONTEXT_META_NAME = ".meta";
 static const char *CONTEXT_META_SHELL = "shell";
+static const char *CONTEXT_META_WIKI_PREFIX = "wiki_prefix"; // Metadata key for wiki URL prefix
+static const char *CONTEXT_WIKI_TERM = "wiki"; // Parent node with text 'wiki' denotes its children as Wiki terms
 
 static TreeNode app_ensure_metadata_node(AppState *app) ;
 static void update_current_with_history(AppState *app, TreeNode new_position) ;
@@ -1847,7 +1849,28 @@ static void handle_search_engine(AppState *app) {
 }
 
 static void handle_open_resource_link(AppState *app){
+    TreeNode current = app->ui->current_node;
+    TreeNode parent = tree_node_parent(app->tree_overlay, current);
     const char *URL = tree_node_text(app->ui->current_node);
+    if(!tree_node_is_null(parent)){
+        const char *parent_text = tree_node_text(parent);
+        if(strcmp(parent_text, CONTEXT_WIKI_TERM) == 0){
+            const char *term = tree_node_text(current);
+            TreeNode wiki_prefix = context_metadata_get(app, app->ui->current_node, CONTEXT_META_WIKI_PREFIX);
+            const char *url_format;
+            if(tree_node_is_null(wiki_prefix)){
+                // use default wiki prefix
+                url_format = "https://en.wikipedia.org/wiki/";
+            } else {
+                url_format = tree_node_text(wiki_prefix);
+            }
+            // concat url
+            static char url[2048];
+            snprintf(url, sizeof(url), "%s%s", url_format, term);
+            URL = url;
+            log_debug("[handle_open_resource_link] Detected wiki term '%s', opening URL: %s", term, URL);
+        }    
+    }
     log_debug("[handle_open_resource_link] Opening URL: %s", URL);
     pid_t pid;
     char *argv[] = {
