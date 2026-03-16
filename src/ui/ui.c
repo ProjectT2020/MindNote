@@ -236,7 +236,7 @@ UserOperation ui_poll_user_input(UiContext *ctx) {
             break;
         }
         case 0x07: // Ctrl+G
-            ctx->show_parent_in_one_line = !ctx->show_parent_in_one_line;
+            ctx->show_ancestors_in_one_line = !ctx->show_ancestors_in_one_line;
             break;
         case 'g': {
             char next = next_char();
