@@ -127,6 +127,7 @@ typedef struct UiContext {
     int view_x;                 // view position x
     int view_y;                 // view position y
     bool fix_view;              // debug do not adjust view
+    bool show_ancestors_in_one_line;
 
     int current_text_x;        // current node text render position X (for cursor positioning during editing)
     int current_text_y;        // current node text render position Y

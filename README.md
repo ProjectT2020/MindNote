@@ -120,6 +120,9 @@ A command mode similar to Vim is available:
 
 **note:** must specify file extension .txt for future support of other format
 
+## note
+For more advanced usage, see `./doc`
+[View & Layout](./doc/view_layout.md)
 
 # Contributing
 
