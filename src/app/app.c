@@ -758,7 +758,7 @@ void handle_fold_more(AppState *app) {
     if(!tree_node_is_null(fold_level_node)){
         fold_level = atoi(tree_node_text(fold_level_node));
     }
-    if(fold_level <= 1){
+    if(fold_level < 1){
         log_debug("Current fold level is %d, cannot fold more", fold_level);
         return;
     }
