@@ -193,7 +193,7 @@ UserOperation ui_poll_user_input(UiContext *ctx) {
         case 'P':
             input.type = UO_PASTE_SIBLING_ABOVE;
             break;
-        case 't': {
+        case 'T': {
             ctx->show_child_position = true;
             ui_render(ctx);
             char next = next_char();
@@ -212,7 +212,7 @@ UserOperation ui_poll_user_input(UiContext *ctx) {
             input.param1 = pos;
             break;
         }
-        case 'f':{
+        case 't':{
             ctx->mark_and_show_visible_nodes = true;
             ctx->mark_page = 0;
             ctx->mark = 0;
@@ -709,15 +709,19 @@ void ui_render_status_bar(UiContext *ctx){
     printf("\033[%d;1H", ctx->height);
     // clear line
     printf("\033[2K");
-    printf("ID: %llu, height: %llu, descendents: %llu, name: %.32s, %.82s", 
-        tree_node_id(ctx->current_node),
-        tree_node_layout_height(ctx->overlay, ctx->current_node),
-        tree_node_descendents(ctx->current_node),
-        get_tree_node_text(ctx->current_node),
-        tree_node_show_hidden_children(ctx->current_node) ? "[show hidden]" : "[hide hidden]"
-    );
+    if(ctx->show_ancestors_in_one_line) {
+        printf("ID: %llu, height: %llu, descendents: %llu, name: %.32s, %.82s", 
+            tree_node_id(ctx->current_node),
+            tree_node_layout_height(ctx->overlay, ctx->current_node),
+            tree_node_descendents(ctx->current_node),
+            get_tree_node_text(ctx->current_node),
+            tree_node_show_hidden_children(ctx->current_node) ? "[show hidden]" : "[hide hidden]"
+        );
+    }else{
+        printf("descendents: %llu", tree_node_descendents(ctx->current_node));
+    }
     if(strlen(ctx->info_message) > 0){
-        printf(" | Info: %s", ctx->info_message);
+        printf(" Info: %s", ctx->info_message);
         ctx->info_message[0] = '\0'; // clear info message
     }
     // printf("\n");

@@ -82,7 +82,7 @@ You can mark a node as the **definition of a term** and jump to it anywhere in U
 
   *(works only after `Ctrl+O`. Due to TTY limitations, `Ctrl+I` is hard to distinguish from `Tab`, which is used for creating a child node.)*
 
-* **jump to visible node:** press `f`, then type the two-letter tag shown before the node
+* **jump to visible node:** press `t`, then type the two-letter tag shown before the node
 
 * **go to last child:** `e`
 
