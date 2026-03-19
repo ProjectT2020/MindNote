@@ -415,23 +415,12 @@ static void handle_add_child_node(AppState *app) {
     operate_commit_event(app->operate, event);
     ui->current_node = tree_find_by_id(app->tree_overlay, event->new_node_id);
     ui_render(app->ui);// render to get text position
-    char terminated_character = 0;
-    char *edit_name = ui_get_name(app->ui, &terminated_character);
-    Event *edit_event = event_create_update_text(
-        app->tree_overlay->last_applied_lsn + 1,
-        tree_node_id(ui->current_node),
-        edit_name
-    );
-    int r2 = operate_commit_event(app->operate, edit_event);
-    if(r2 != 0){
-        log_warn("handle_add_child: Failed to commit update text event");
-    }
-    free(edit_name);
-    if(terminated_character == '\t'){
-        // If user pressed tab, add another child
-        handle_add_child_to_tail(app);
-    }
+    
+    handle_edit_node(app);
 }
+
+
+void handle_edit_node(AppState *app);
 
 void handle_add_child_to_tail(AppState *app) {
     UiContext *ui = app->ui;
@@ -448,22 +437,7 @@ void handle_add_child_to_tail(AppState *app) {
     ui->current_node = tree_find_by_id(app->tree_overlay, event->new_node_id);
     ui_render(app->ui);// render to get text position
 
-    char terminated_character = 0;
-    char *edit_name = ui_get_name(app->ui, &terminated_character);
-    Event *edit_event = event_create_update_text(
-        app->tree_overlay->last_applied_lsn + 1,
-        tree_node_id(ui->current_node),
-        edit_name
-    );
-    int r2 = operate_commit_event(app->operate, edit_event);
-    if(r2 != 0){
-        log_warn("handle_add_child_to_tail: Failed to commit update text event");
-    }
-    free(edit_name);
-    if(terminated_character == '\t'){
-        // If user pressed tab, add another child
-        handle_add_child_to_tail(app);
-    }
+    handle_edit_node(app);
 }
 
 static void handle_add_sibling_above(AppState *app) {
@@ -498,23 +472,7 @@ static void handle_add_sibling_above(AppState *app) {
         ui->current_node = tree_find_by_id(app->tree_overlay, event->new_node_id);
         ui_render(app->ui);
 
-        char terminated_character = 0;
-        char *name = ui_get_name(app->ui, &terminated_character);
-        Event *edit_event = event_create_update_text(
-            app->tree_overlay->last_applied_lsn + 1,
-            tree_node_id(ui->current_node),
-            name
-        );
-        int r2 = operate_commit_event(app->operate, edit_event);
-        if(r2 != 0){
-            log_warn("handle_add_sibling_above: Failed to commit update text event");
-        }
-        
-        free(name);
-        if(terminated_character == '\t'){
-            // If user pressed tab, add another sibling above
-            handle_add_child_to_tail(app);
-        }
+        handle_edit_node(app);
     }
 }
 
@@ -534,28 +492,7 @@ static void handle_add_sibling_below(AppState *app) {
         ui->current_node = tree_find_by_id(app->tree_overlay, event->new_node_id);
         ui_render(app->ui);
 
-        char terminated_character = 0;
-        char *name = ui_get_name(app->ui, &terminated_character);
-        if(terminated_character == '\e'){
-            // cancelled
-            free(name);
-            return;
-        }
-        Event *edit_event = event_create_update_text(
-            app->tree_overlay->last_applied_lsn + 1,
-            tree_node_id(ui->current_node),
-            name
-        );
-        int r2 = operate_commit_event(app->operate, edit_event);
-        if(r2 != 0){
-            log_warn("handle_add_sibling_below: Failed to commit update text event");
-        }
-        
-        free(name);
-        if(terminated_character == '\t'){
-            // If user pressed tab, add another sibling below
-            handle_add_child_to_tail(app);
-        }
+        handle_edit_node(app);
     }
 
 }
@@ -576,6 +513,9 @@ void handle_edit_node(AppState *app){
         name
     );
     int r = operate_commit_event(app->operate, event);
+    // update current to reflect underlying node change
+    // kind may changed to TREE_NODE_MUTABLE
+    ui->current_node = tree_find_by_id(app->tree_overlay, event->node_id);
     if(r != 0){
         log_warn("handle_edit_node: Failed to commit update text event");
     }
@@ -599,8 +539,37 @@ void handle_mark_as_definition(AppState *app) {
     if(r != 0){
         log_warn("handle_mark_as_definition: Failed to commit update text event");
     } 
+    ui->current_node = tree_find_by_id(app->tree_overlay, event->node_id);
     free(new_name);
 }
+
+void handle_unmark_as_definition(AppState *app) {
+    UiContext *ui = app->ui;
+    TreeNode current = ui->current_node;
+    const char *old_name = tree_node_text(current);
+
+    int old_name_len = strlen(old_name);
+    if(old_name_len < 2 || old_name[0] != '[' || old_name[old_name_len - 1] != ']'){
+        log_debug("handle_unmark_as_definition: Current node text is not marked as definition, skipping unmarking");
+        return;
+    }
+
+    char *new_name = calloc(old_name_len - 1, sizeof(char));
+    strncpy(new_name, old_name + 1, old_name_len - 2);
+    
+    Event *event = event_create_update_text(
+        app->tree_overlay->last_applied_lsn + 1,
+        tree_node_id(current),
+        new_name
+    );
+    int r = operate_commit_event(app->operate, event);
+    if(r != 0){
+        log_warn("handle_unmark_as_definition: Failed to commit update text event");
+    } 
+    ui->current_node = tree_find_by_id(app->tree_overlay, event->node_id);
+    free(new_name);
+}
+
 
 static void handle_append_node_text(AppState *app) {
     UiContext *ui = app->ui;
@@ -618,6 +587,9 @@ static void handle_append_node_text(AppState *app) {
         new_name
     );
     int r = operate_commit_event(app->operate, event);
+    // update current to reflect underlying node change
+    // kind may changed to TREE_NODE_MUTABLE
+    ui->current_node = tree_find_by_id(app->tree_overlay, event->node_id);
     if(r != 0){
         log_warn("handle_append_node_text: Failed to commit update text event");
     } 
@@ -1160,6 +1132,9 @@ static void handle_join_text_without_space(AppState *app) {
         log_warn("Failed to update text for join text without space");
         return;
     }
+    app->ui->current_node = 
+        tree_find_by_id(app->tree_overlay, edit_event->new_node_id);
+
     // delete next sibling (move to recycle bin)
     TreeNode old_parent = tree_node_parent(app->tree_overlay, next_sibling);
     TreeNode old_next_sibling = tree_node_next_sibling(app->tree_overlay, next_sibling);
@@ -2084,6 +2059,9 @@ void app_apply_event(AppState *app, UserOperation uo) {
         break;
     case UO_MARK_AS_DEFINITION:
         handle_mark_as_definition(app);
+        break;
+    case UO_UNMARK_AS_DEFINITION:
+        handle_unmark_as_definition(app);
         break;
     case UO_APPEND_NODE_TEXT:
         handle_append_node_text(app);

@@ -61,6 +61,8 @@ UserOperation ui_poll_user_input(UiContext *ctx) {
                 input.param1 = next;
             }else if(next == '['){
                 input.type = UO_MARK_AS_DEFINITION;
+            }else if(next == ']'){
+                input.type = UO_UNMARK_AS_DEFINITION;
             }else {
                 log_info("invalid mark character: %c\n", next);
             }

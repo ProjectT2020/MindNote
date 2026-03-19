@@ -37,6 +37,7 @@ typedef struct {
         UO_CUT_NODE,            // cut node but keep children (promote children)
         UO_INSERT_PARENT_LEFT,     // insert new parent node to the left of current node, and make current node a child of the new parent
         UO_MARK_AS_DEFINITION,       // mark current node as definition (surround with [], for jumping)
+        UO_UNMARK_AS_DEFINITION,     // unmark current node as definition (remove surrounding [])
 
         // folding
         UO_TOGGLE_FOLD_NODE,
