@@ -2,6 +2,10 @@ CC      := gcc
 CFLAGS  := -g3 -O0 -Wall -Wextra -std=c11 -D_XOPEN_SOURCE=700 -I src -MMD -MP \
            -Werror=incompatible-pointer-types
 
+ifeq ($(shell uname -s),Darwin)
+CFLAGS += -D_DARWIN_C_SOURCE
+endif
+
 # Core library sources
 CORE_SRCS := \
 	src/utils/logging.c \

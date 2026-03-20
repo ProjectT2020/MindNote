@@ -1,11 +1,12 @@
 #include <assert.h>
+#include <fcntl.h>
+#include <stdlib.h>
 #include <spawn.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <termios.h>
-#include <sys/ioctl.h>
 #include <stdint.h>
 
 #include "../wal/wal.h"
@@ -285,9 +286,36 @@ static int app_load_current(AppState *app) {
 }
 
 AppState* app_init(const char *data_file) {
+    static char lock_file_path[1024];
+    snprintf(lock_file_path, sizeof(lock_file_path), "%s.lock", data_file);
+    FILE *lock_file = fopen(lock_file_path, "w");
+    if (lock_file) {
+        fprintf(lock_file, "%d", getpid());
+        fclose(lock_file);
+        log_debug("Created lock file: %s", lock_file_path);
+    } else {
+        log_error("Failed to create lock file: %s. Exiting.", lock_file_path);
+        exit(1);
+    }
+    // flock
+    int fd = open(lock_file_path, O_RDWR);
+    if (fd == -1) {
+        log_error("Failed to open lock file for locking: %s. Exiting.", lock_file_path);
+        exit(1);
+    }
+    int result = flock(fd, LOCK_EX | LOCK_NB);
+    if (result != 0) {
+        log_error("Failed to acquire lock on file: %s. Another instance may be running. Exiting.", lock_file_path);
+        close(fd);
+        exit(1);
+    }
+    log_debug("Acquired lock on file: %s", lock_file_path);
+
     AppState *app = (AppState*)malloc(sizeof(AppState));
     app->data_file_path = strdup(data_file);
-    
+    app->lock_file_path = strdup(lock_file_path);
+    app->lock_file_fd = fd;
+
     // load or initialize tree storage, view and overlay
     bool file_exists = (access(data_file, F_OK) == 0);
     if(file_exists){
@@ -364,7 +392,16 @@ void app_shutdown(AppState *app) {
     if (app->jump_back_stack) stack_destroy(app->jump_back_stack);
     if (app->jump_forward_stack) stack_destroy(app->jump_forward_stack);
     if (app->edit_buffer) free(app->edit_buffer);
-    
+    if (app->lock_file_path) {
+        flock(app->lock_file_fd, LOCK_UN); // release lock
+        close(app->lock_file_fd); // close file descriptor
+        // remove lock file
+        if (remove(app->lock_file_path) != 0) {
+            log_error("Failed to remove lock file: %s", app->lock_file_path);
+        } else {
+            log_debug("Removed lock file: %s", app->lock_file_path);
+        }
+    }
     free(app);
 }
 

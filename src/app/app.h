@@ -14,6 +14,8 @@
  */
 typedef struct {
     char *data_file_path;
+    char *lock_file_path; // path to lock file for single instance enforcement
+    int lock_file_fd;   // file descriptor for the lock file
 
     TreeOverlay *tree_overlay;
     TreeView *tree_view;

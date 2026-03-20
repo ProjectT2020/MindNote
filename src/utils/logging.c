@@ -126,13 +126,13 @@ void log_error(const char *fmt, ...) {
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
     
+    // Always log errors to stderr
+    fprintf(stderr, "[ERROR]: %s\n", buf);
+
     if(output_mode == LOG_TO_FILE_ONLY || output_mode == LOG_TO_BOTH) {
         if(log_file) {
             fprintf(log_file, "[ERROR]: %s\n", buf);
             fflush(log_file);
         }
-    }
-    if(output_mode == LOG_TO_STDERR_ONLY || output_mode == LOG_TO_BOTH) {
-        fprintf(stderr, "[ERROR]: %s\n", buf);
     }
 }
