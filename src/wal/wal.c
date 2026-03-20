@@ -135,6 +135,7 @@ Wal* wal_open(const char *path) {
     uint64_t last_lsn = 0;
     uint64_t end_offset = 0;
     if (wal_scan_and_recover(fd, &last_lsn, &end_offset) != 0) {
+        log_error("Failed to scan and recover WAL file: %s\n", path);
         close(fd);
         return NULL;
     }

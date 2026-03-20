@@ -333,6 +333,11 @@ AppState* app_init(const char *data_file) {
     char *wal_path = calloc(strlen(data_file) + 5, sizeof(char));
     sprintf(wal_path, "%s.wal", data_file);
     app->wal = wal_open(wal_path);
+    if(app->wal == NULL){
+        log_error("Failed to open WAL file: %s", wal_path);
+        free(wal_path);
+        exit(1);
+    }
     app->wal->checkpoint_lsn = tree_storage_get_last_saved_lsn(app->tree_storage);
     app->wal->next_lsn = app->wal->checkpoint_lsn + 1;
     free(wal_path);

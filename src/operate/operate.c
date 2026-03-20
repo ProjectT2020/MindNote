@@ -210,6 +210,10 @@ int operate_count_subtree_nodes(Operate *operate, TreeNode node){
     return count;
 }
 
+/**
+ * read node of multiple lines
+ * if next few lines not start with tab, consider them as part of current node text, separated by space
+ */
 ssize_t read_node(FILE *file, char *buf, size_t buf_sz)
 {
     if (!file || !buf || buf_sz == 0)
@@ -534,31 +538,97 @@ int operate_edit_node(Operate *operate, TreeNode node){
         remove(tmp_filename);
         return -1;
     }
-    char new_text[4096];
-    size_t n = fread(new_text, 1, sizeof(new_text) - 1, tmp_file);
-    new_text[n] = '\0';
+
+    char line[4096];
+    char *r = fgets(line, sizeof(line), tmp_file);
+    if(!r){
+        log_error("operate_edit_node: Failed to read edited content");
+        fclose(tmp_file);
+        remove(tmp_filename);
+        return -1;
+    }
+    int len = strlen(line);
+    if(len > 0 && line[len - 1] == '\n'){
+        line[len - 1] = '\0';
+    }
+    Event *e = event_create_update_text(
+        operate->overlay->last_applied_lsn + 1,
+        tree_node_id(node),
+        line
+    );
+    int ir = operate_commit_event(operate, e);
+    if(ir != 0){
+        log_error("operate_edit_node: Failed to commit UPDATE_TEXT event");
+        return -1;
+    }
+
+    TreeNode current = tree_find_by_id(operate->overlay, e->node_id);
+    event_destroy(e);
+
+    int prev_indent = 0;
+    do {
+        r = fgets(line, sizeof(line), tmp_file);
+        if(r){
+            len = strlen(line);
+            // remove trailing newline
+            if(len > 0 && line[len - 1] == '\n'){
+                line[len - 1] = '\0';
+            }
+            int indent = 0;
+            while(line[indent] == '\t'){
+                indent++;  
+            }
+            char *text = line + indent;
+            if(indent == prev_indent){
+                // add sibling
+                e = event_create_add_sibling(
+                    operate->overlay->last_applied_lsn + 1,
+                    tree_node_id(current),
+                    text
+                );
+            }else if(indent == prev_indent + 1){
+                // add child
+                e = event_create_add_last_child(
+                    operate->overlay->last_applied_lsn + 1,
+                    tree_node_id(current),
+                    text
+                );
+            }else if(indent < prev_indent){
+                // add sibling to ancestor
+                TreeNode ancestor = current;
+                for(int i = 0; i < (prev_indent - indent); i++){
+                    ancestor = tree_node_parent(operate->overlay, ancestor);
+                    if(tree_node_is_null(ancestor)){
+                        log_error("operate_edit_node: Invalid indentation in edited content");
+                        break;
+                    }
+                }
+                e = event_create_add_sibling(
+                    operate->overlay->last_applied_lsn + 1,
+                    tree_node_id(ancestor),
+                    text
+                );
+            }else{
+                log_error("operate_edit_node: Invalid indentation in edited content");
+                break;
+            }
+
+            ir = operate_commit_event(operate, e);
+            current = tree_find_by_id(operate->overlay, e->new_node_id);
+            event_destroy(e);
+            if(ir != 0){
+                log_error("operate_edit_node: Failed to commit APPEND_TEXT event");
+                return -1;
+            }
+            prev_indent = indent;
+        }else{
+            break;
+        }
+    }while(true);
+
     fclose(tmp_file);
     remove(tmp_filename);
-    // Remove trailing '\n' if present
-    size_t len = strlen(new_text);
-    if(len > 0 && new_text[len - 1] == '\n') {
-        new_text[len - 1] = '\0';
-    }
-    // Commit update event if text changed
-    if(strcmp(old_text, new_text) != 0){
-        Event *e = event_create_update_text(
-            operate->overlay->last_applied_lsn + 1,
-            tree_node_id(node),
-            new_text
-        );
-        int r = operate_commit_event(operate, e);
-        if(r != 0){
-            log_error("operate_edit_node: Failed to commit UPDATE_TEXT event");
-            return -1;
-        }
-        return 0;
-    }
-    return 0;
+    
 }
 
 typedef struct {
