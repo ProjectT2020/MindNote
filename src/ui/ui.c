@@ -279,6 +279,12 @@ UserOperation ui_poll_user_input(UiContext *ctx) {
             }
             break;
         }
+        case '{':
+            input.type = UO_MOVE_PARENT_PREV_SIBLING_BEGIN;
+            break;
+        case '}':
+            input.type = UO_MOVE_PARENT_NEXT_SIBLING_END;
+            break;
         case '[':{
             char next = next_char();
             switch(next){
@@ -948,21 +954,35 @@ TreeNode ui_parent_level_next_visible_sibling(UiContext *ui, TreeNode parent) {
     int depth = 0;
     bool from_child = false;
     TreeNode next_sibling = ui_next_visible_sibling(ui, parent);
-    if(!tree_node_is_null(next_sibling)){
+    TreeNode child = ui_first_visible_child(ui, next_sibling);
+    if(!tree_node_is_null(next_sibling) && !tree_node_is_null(child)){
         goto found;
     }else{
-        parent = tree_node_parent(ui->overlay, parent);
-        depth--;
-        from_child = true;
+        TreeNode sibling = ui_next_visible_sibling(ui, parent);
+        if(tree_node_is_null(sibling)){
+            parent = tree_node_parent(ui->overlay, parent);
+            depth--;
+            from_child = true;
+        }else{
+            parent = sibling;
+            from_child = false;
+        }
     }
     while(!tree_node_is_null(parent)){
         if(depth == 0){
             TreeNode child = ui_first_visible_child(ui, parent);
             if(tree_node_is_null(child)){
-                parent = tree_node_parent(ui->overlay, parent);
-                depth--;
-                from_child = true;
-                continue;
+                TreeNode sibling = ui_next_visible_sibling(ui, parent);
+                if(tree_node_is_null(sibling)){
+                    parent = tree_node_parent(ui->overlay, parent);
+                    depth--;
+                    from_child = true;
+                    continue;
+                }else{
+                    parent = sibling;
+                    from_child = false;
+                    continue;
+                }
             }else{
                 next_sibling = parent;
                 goto found;
@@ -1018,21 +1038,35 @@ TreeNode ui_parent_level_prev_visible_sibling(UiContext *ui, TreeNode parent){
     int depth = 0;
     bool from_child = false;
     TreeNode prev_sibling = ui_previous_visible_sibling(ui, parent);
-    if(!tree_node_is_null(prev_sibling)){
+    TreeNode child = ui_first_visible_child(ui, prev_sibling);
+    if(!tree_node_is_null(prev_sibling) && !tree_node_is_null(child)){
         goto found;
     }else{
-        parent = tree_node_parent(ui->overlay, parent);
-        depth--;
-        from_child = true;
+        TreeNode sibling = ui_previous_visible_sibling(ui, parent);
+        if(tree_node_is_null(sibling)){
+            parent = tree_node_parent(ui->overlay, parent);
+            depth--;
+            from_child = true;
+        }else{
+            parent = sibling;
+            from_child = false;
+        }
     }
     while(!tree_node_is_null(parent)){
         if(depth == 0){
             TreeNode child = ui_last_visible_child(ui, parent);
             if(tree_node_is_null(child)){
-                parent = tree_node_parent(ui->overlay, parent);
-                depth--;
-                from_child = true;
-                continue;
+                TreeNode sibling = ui_previous_visible_sibling(ui, parent);
+                if(tree_node_is_null(sibling)){
+                    parent = tree_node_parent(ui->overlay, parent);
+                    depth--;
+                    from_child = true;
+                    continue;
+                }else{
+                    parent = sibling;
+                    from_child = false;
+                    continue;
+                }
             }else{
                 prev_sibling = parent;
                 goto found;
