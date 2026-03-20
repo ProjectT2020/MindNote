@@ -28,8 +28,10 @@ static const char *APP_META_BOOKMARK_NAME = "bookmarks";
 static const char *CONTEXT_META_NAME = ".meta";
 static const char *CONTEXT_META_SHELL = "shell";
 static const char *CONTEXT_META_WIKI_PREFIX = "wiki_prefix"; // Metadata key for wiki URL prefix
+static const char *CONTEXT_META_CODE_PROJECT_ROOT = "project_root"; // Metadata key for code project root path
 static const char *CONTEXT_META_ASK_AI_CMD = "ask_ai";
 static const char *CONTEXT_WIKI_TERM = "wiki"; // Parent node with text 'wiki' denotes its children as Wiki terms
+static const char *CONTEXT_CODE_RESOURCE = "code"; // Parent node with text 'code' denotes its children as source code
 
 static TreeNode app_ensure_metadata_node(AppState *app) ;
 static void update_current_with_history(AppState *app, TreeNode new_position) ;
@@ -1914,9 +1916,65 @@ static void handle_search_engine(AppState *app) {
 static void handle_open_resource_link(AppState *app){
     TreeNode current = app->ui->current_node;
     TreeNode parent = tree_node_parent(app->tree_overlay, current);
+    const char *parent_text = tree_node_text(parent);
     const char *URL = tree_node_text(app->ui->current_node);
-    if(!tree_node_is_null(parent)){
-        const char *parent_text = tree_node_text(parent);
+    pid_t pid;
+    char **spawn_argv;
+    if(strcmp(parent_text, CONTEXT_CODE_RESOURCE) == 0){
+        const char *code_path_with_line = tree_node_text(current);
+        int code_path_with_line_len = strlen(code_path_with_line);
+        char code_path_buf[4096];        
+        code_path_buf[0] = '\0';
+        char line_part[64];
+        line_part[0] = '\0';
+        int line_number = 0;
+        const char *code_path = code_path_with_line;
+        const char *colon = strrchr(code_path_with_line, ':');
+        if (colon) {
+            size_t len = colon - code_path_with_line;
+            if(code_path_with_line_len - len > sizeof(line_part)){
+                log_warn("Line part is too long in code resource link, cannot parse line number");
+                ui_info_set_message(app->ui, "Line part is too long in code resource link, cannot parse line number");
+                return;
+            }
+            strncpy(code_path_buf, code_path_with_line, len);
+            code_path_buf[len] = '\0';
+            code_path = code_path_buf;
+
+            strcpy(line_part, colon + 1);
+        } 
+
+        TreeNode code_project_root = context_metadata_get(app, app->ui->current_node, CONTEXT_META_CODE_PROJECT_ROOT);
+        const char *project_root = tree_node_is_null(code_project_root) ? "." : tree_node_text(code_project_root);
+        // check project root exists
+        if(access(project_root, F_OK) != 0){
+            log_warn("Project root '%s' does not exist, cannot open code resource link", project_root);
+            ui_info_set_message(app->ui, "Project root '%s' does not exist, cannot open code resource link", project_root);
+            return;
+        }
+        static char code_full_path[4096];
+        snprintf(code_full_path, sizeof(code_full_path), "%s/%s", project_root, code_path);
+        if(access(code_full_path, F_OK) != 0){
+            log_warn("Code resource '%s' does not exist under project root '%s', cannot open code resource link", code_path, project_root);
+            ui_info_set_message(app->ui, "Code resource '%s' does not exist under project root '%s', cannot open code resource link", code_path, project_root);
+            return;
+        }
+        static char code_full_path_with_line[4096];
+        snprintf(code_full_path_with_line, sizeof(code_full_path_with_line), "%s/%s:%s", project_root, code_path, line_part);
+        char *argv[] = {
+            "code",
+            (char*) project_root,
+            "-g",
+            code_full_path_with_line,
+            NULL
+        };
+        spawn_argv = argv;
+        int r = posix_spawnp(&pid, "code", NULL, NULL, spawn_argv, NULL);
+        if (r != 0) {
+            log_error("handle_open_resource_link: Failed to spawn process to open code resource link in code editor");
+            return;
+        }
+    }else if(!tree_node_is_null(parent)){
         if(strcmp(parent_text, CONTEXT_WIKI_TERM) == 0){
             const char *term = tree_node_text(current);
             TreeNode wiki_prefix = context_metadata_get(app, app->ui->current_node, CONTEXT_META_WIKI_PREFIX);
@@ -1932,22 +1990,22 @@ static void handle_open_resource_link(AppState *app){
             snprintf(url, sizeof(url), "%s%s", url_format, term);
             URL = url;
             log_debug("[handle_open_resource_link] Detected wiki term '%s', opening URL: %s", term, URL);
-        }    
-    }
-    log_debug("[handle_open_resource_link] Opening URL: %s", URL);
-    pid_t pid;
-    char *argv[] = {
-        "open",
-        "-a",
-        "Firefox",
-        "--",
-        (char *)URL,
-        NULL
-    };
-    int r = posix_spawnp(&pid, "open", NULL, NULL, argv, NULL);
-    if (r != 0) {
-        log_error("handle_open_resource_link: Failed to spawn process to open URL");
-        return;
+        }
+        log_debug("[handle_open_resource_link] Opening URL: %s", URL);
+        char *argv[] = {
+            "open",
+            "-a",
+            "Firefox",
+            "--",
+            (char *)URL,
+            NULL
+        };
+        spawn_argv = argv;
+        int r = posix_spawnp(&pid, "open", NULL, NULL, spawn_argv, NULL);
+        if (r != 0) {
+            log_error("handle_open_resource_link: Failed to spawn process to open URL");
+            return;
+        }
     }
     log_debug("[handle_open_resource_link] Spawned process with PID: %d", pid);
 }
